@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: gemini-api-server
+    env: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    region: oregon
+    envVars:
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
