@@ -1,12 +1,12 @@
 # マルチステージビルドでDartアプリケーションをコンパイル
-FROM dart:stable AS build
+FROM ghcr.io/cirruslabs/flutter:stable AS build
 
 # 作業ディレクトリを設定
 WORKDIR /app
 
 # pubspec.yamlとpubspec.lockをコピーして依存関係を解決
 COPY pubspec.* ./
-RUN dart pub get
+RUN flutter pub get
 
 # ソースコードをコピー
 COPY . .
