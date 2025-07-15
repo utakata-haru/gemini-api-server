@@ -186,35 +186,47 @@ class GeminiApiServer {
   }
 
   Future<String> _callGeminiApi(String question) async {
-    // 注意: 実際のGemini APIを使用する場合は、APIキーが必要です
-    // ここではダミーレスポンスを返しています
+    // 環境変数からAPIキーを取得
+    final apiKey = Platform.environment['GEMINI_API_KEY'];
+    if (apiKey == null || apiKey.isEmpty) {
+      throw Exception('GEMINI_API_KEY environment variable not set. Please set your Gemini API key.');
+    }
     
-    // 実際のGemini API呼び出しの例:
-    // final apiKey = Platform.environment['GEMINI_API_KEY'];
-    // if (apiKey == null) {
-    //   throw Exception('GEMINI_API_KEY environment variable not set');
-    // }
-    
-    // final response = await http.post(
-    //   Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$apiKey'),
-    //   headers: {'Content-Type': 'application/json'},
-    //   body: json.encode({
-    //     'contents': [{
-    //       'parts': [{'text': question}]
-    //     }]
-    //   }),
-    // );
-    
-    // if (response.statusCode == 200) {
-    //   final data = json.decode(response.body);
-    //   return data['candidates'][0]['content']['parts'][0]['text'];
-    // } else {
-    //   throw Exception('Gemini API error: ${response.statusCode}');
-    // }
-    
-    // ダミーレスポンス（テスト用）
-    await Future.delayed(Duration(milliseconds: 500)); // API呼び出しをシミュレート
-    return 'これはダミーレスポンスです。質問「$question」に対する回答です。実際のGemini APIを使用するには、APIキーの設定が必要です。';
+    try {
+      // Gemini API呼び出し
+      final response = await http.post(
+        Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=$apiKey'),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode({
+          'contents': [{
+            'parts': [{'text': question}]
+          }]
+        }),
+      );
+      
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body) as Map<String, dynamic>;
+        
+        // レスポンスの構造を確認してテキストを抽出
+        if (data['candidates'] != null && 
+            data['candidates'].isNotEmpty &&
+            data['candidates'][0]['content'] != null &&
+            data['candidates'][0]['content']['parts'] != null &&
+            data['candidates'][0]['content']['parts'].isNotEmpty) {
+          return data['candidates'][0]['content']['parts'][0]['text'] as String;
+        } else {
+          throw Exception('Unexpected response format from Gemini API');
+        }
+      } else {
+        final errorData = json.decode(response.body);
+        throw Exception('Gemini API error (${response.statusCode}): ${errorData['error']?['message'] ?? 'Unknown error'}');
+      }
+    } catch (e) {
+      if (e is Exception) {
+        rethrow;
+      }
+      throw Exception('Failed to call Gemini API: $e');
+    }
   }
 
   // ignore: prefer_function_declarations_over_variables
