@@ -228,24 +228,175 @@ class GeminiApiServer {
   }
   
   String _generateSimpleResponse(String question) {
-    // シンプルなルールベースの回答生成
+    // より柔軟で汎用的な回答生成
     final lowerQuestion = question.toLowerCase();
     
-    if (lowerQuestion.contains('こんにちは') || lowerQuestion.contains('hello')) {
+    // 挨拶
+    if (lowerQuestion.contains('こんにちは') || lowerQuestion.contains('hello') || lowerQuestion.contains('おはよう') || lowerQuestion.contains('こんばんは')) {
       return 'こんにちは！お元気ですか？何かお手伝いできることがあれば、お気軽にお聞かせください。';
-    } else if (lowerQuestion.contains('天気') || lowerQuestion.contains('weather')) {
-      return '申し訳ございませんが、リアルタイムの天気情報は提供できません。お住まいの地域の天気予報サイトをご確認ください。';
-    } else if (lowerQuestion.contains('時間') || lowerQuestion.contains('time')) {
-      return '現在の時刻は ${DateTime.now().toString()} です。';
-    } else if (lowerQuestion.contains('ありがとう') || lowerQuestion.contains('thank')) {
-      return 'どういたしまして！他にも何かご質問があれば、いつでもお聞かせください。';
-    } else if (lowerQuestion.contains('名前') || lowerQuestion.contains('name')) {
-      return '私はGemini風AIアシスタントです。様々な質問にお答えできるよう努めています。';
-    } else if (lowerQuestion.contains('何ができる') || lowerQuestion.contains('what can you do')) {
-      return '私は質問にお答えしたり、簡単な会話をしたりできます。プログラミング、一般知識、日常的な質問など、幅広いトピックについてお話しできます。';
-    } else {
-      return 'ご質問「$question」についてお答えします。申し訳ございませんが、現在は限定的な機能のみ提供しており、詳細な回答ができません。より具体的な質問をしていただければ、お役に立てるかもしれません。';
     }
+    
+    // 天気関連
+    else if (lowerQuestion.contains('天気') || lowerQuestion.contains('weather')) {
+      return '申し訳ございませんが、リアルタイムの天気情報は提供できません。お住まいの地域の天気予報サイトをご確認ください。';
+    }
+    
+    // 時間関連
+    else if (lowerQuestion.contains('時間') || lowerQuestion.contains('time') || lowerQuestion.contains('いま何時')) {
+      return '現在の時刻は ${DateTime.now().toString()} です。';
+    }
+    
+    // お礼
+    else if (lowerQuestion.contains('ありがとう') || lowerQuestion.contains('thank')) {
+      return 'どういたしまして！他にも何かご質問があれば、いつでもお聞かせください。';
+    }
+    
+    // 自己紹介
+    else if (lowerQuestion.contains('名前') || lowerQuestion.contains('name') || lowerQuestion.contains('あなたは誰')) {
+      return '私はGemini風AIアシスタントです。様々な質問にお答えできるよう努めています。';
+    }
+    
+    // 機能説明
+    else if (lowerQuestion.contains('何ができる') || lowerQuestion.contains('what can you do') || lowerQuestion.contains('機能')) {
+      return '私は質問にお答えしたり、簡単な会話をしたりできます。プログラミング、一般知識、日常的な質問など、幅広いトピックについてお話しできます。';
+    }
+    
+    // プログラミング関連
+    else if (lowerQuestion.contains('python') || lowerQuestion.contains('javascript') || lowerQuestion.contains('java') || lowerQuestion.contains('dart') || lowerQuestion.contains('flutter') || lowerQuestion.contains('コード') || lowerQuestion.contains('プログラム')) {
+      return _generateProgrammingResponse(question);
+    }
+    
+    // 計算関連
+    else if (lowerQuestion.contains('計算') || lowerQuestion.contains('足し算') || lowerQuestion.contains('引き算') || lowerQuestion.contains('掛け算') || lowerQuestion.contains('割り算') || _containsNumbers(question)) {
+      return _generateMathResponse(question);
+    }
+    
+    // 説明・解説関連
+    else if (lowerQuestion.contains('説明') || lowerQuestion.contains('教えて') || lowerQuestion.contains('とは') || lowerQuestion.contains('について') || lowerQuestion.contains('how') || lowerQuestion.contains('what is')) {
+      return _generateExplanationResponse(question);
+    }
+    
+    // 一般的な質問
+    else {
+      return _generateGeneralResponse(question);
+    }
+  }
+  
+  String _generateProgrammingResponse(String question) {
+    final lowerQuestion = question.toLowerCase();
+    
+    if (lowerQuestion.contains('python')) {
+      if (lowerQuestion.contains('計算機') || lowerQuestion.contains('calculator')) {
+        return '''Pythonで簡単な計算機のコードをご紹介します：
+
+```python
+def calculator():
+    print("簡単な計算機")
+    print("演算子: +, -, *, /")
+    
+    while True:
+        try:
+            num1 = float(input("最初の数字を入力してください: "))
+            operator = input("演算子を入力してください (+, -, *, /): ")
+            num2 = float(input("2番目の数字を入力してください: "))
+            
+            if operator == '+':
+                result = num1 + num2
+            elif operator == '-':
+                result = num1 - num2
+            elif operator == '*':
+                result = num1 * num2
+            elif operator == '/':
+                if num2 != 0:
+                    result = num1 / num2
+                else:
+                    print("エラー: ゼロで割ることはできません")
+                    continue
+            else:
+                print("無効な演算子です")
+                continue
+                
+            print(f"結果: {num1} {operator} {num2} = {result}")
+            
+            if input("続けますか？ (y/n): ").lower() != 'y':
+                break
+                
+        except ValueError:
+            print("無効な入力です。数字を入力してください。")
+
+if __name__ == "__main__":
+    calculator()
+```
+
+このコードは基本的な四則演算ができる計算機です。''';
+      } else {
+        return 'Pythonについてお答えします。Pythonは読みやすく書きやすいプログラミング言語で、データサイエンス、ウェブ開発、自動化など様々な分野で使われています。具体的に何について知りたいですか？';
+      }
+    } else if (lowerQuestion.contains('javascript')) {
+      return 'JavaScriptについてお答えします。JavaScriptはウェブブラウザで動作するプログラミング言語で、ウェブページに動的な機能を追加できます。Node.jsを使えばサーバーサイドでも動作します。';
+    } else if (lowerQuestion.contains('dart') || lowerQuestion.contains('flutter')) {
+      return 'Dart/Flutterについてお答えします。DartはGoogleが開発したプログラミング言語で、Flutterフレームワークと組み合わせてクロスプラットフォームのモバイルアプリを開発できます。';
+    } else {
+      return 'プログラミングについてお答えします。どの言語や技術について詳しく知りたいですか？Python、JavaScript、Java、Dart/Flutter、HTML/CSS、データベースなど、様々なトピックについてお話しできます。';
+    }
+  }
+  
+  String _generateMathResponse(String question) {
+    // 簡単な数式を検出して計算
+    final numbers = RegExp(r'\d+').allMatches(question).map((m) => int.parse(m.group(0)!)).toList();
+    
+    if (numbers.length >= 2) {
+      final num1 = numbers[0];
+      final num2 = numbers[1];
+      
+      if (question.contains('+') || question.contains('足し算') || question.contains('たす')) {
+        return '$num1 + $num2 = ${num1 + num2}';
+      } else if (question.contains('-') || question.contains('引き算') || question.contains('ひく')) {
+        return '$num1 - $num2 = ${num1 - num2}';
+      } else if (question.contains('*') || question.contains('×') || question.contains('掛け算') || question.contains('かける')) {
+        return '$num1 × $num2 = ${num1 * num2}';
+      } else if (question.contains('/') || question.contains('÷') || question.contains('割り算') || question.contains('わる')) {
+        if (num2 != 0) {
+          return '$num1 ÷ $num2 = ${num1 / num2}';
+        } else {
+          return 'エラー: ゼロで割ることはできません。';
+        }
+      }
+    }
+    
+    return '計算についてお答えします。具体的な数式を教えていただければ、計算結果をお答えできます。例：「10 + 5は？」「20 × 3を計算して」など。';
+  }
+  
+  String _generateExplanationResponse(String question) {
+    final lowerQuestion = question.toLowerCase();
+    
+    if (lowerQuestion.contains('ai') || lowerQuestion.contains('人工知能')) {
+      return 'AI（人工知能）は、人間の知能を模倣したコンピューターシステムです。機械学習、深層学習、自然言語処理などの技術を使って、データから学習し、予測や判断を行います。';
+    } else if (lowerQuestion.contains('api')) {
+      return 'API（Application Programming Interface）は、異なるソフトウェア間でデータや機能をやり取りするための仕組みです。ウェブAPIを使うことで、他のサービスの機能を自分のアプリケーションに組み込むことができます。';
+    } else if (lowerQuestion.contains('データベース') || lowerQuestion.contains('database')) {
+      return 'データベースは、大量のデータを効率的に保存・管理・検索するためのシステムです。SQL、NoSQL、リレーショナルデータベースなど様々な種類があります。';
+    } else {
+      return '「$question」について説明いたします。申し訳ございませんが、この特定のトピックについて詳細な説明を提供できません。より具体的な質問をしていただければ、お役に立てるかもしれません。';
+    }
+  }
+  
+  String _generateGeneralResponse(String question) {
+    final responses = [
+      'ご質問「$question」についてお答えします。興味深いトピックですね。もう少し詳しく教えていただけますか？',
+      '「$question」について考えてみました。このテーマについて、どのような観点から知りたいですか？',
+      'ご質問ありがとうございます。「$question」について、具体的にどのような情報をお求めでしょうか？',
+      '「$question」に関するご質問ですね。このトピックについて、より詳しくお聞かせください。',
+      'ご質問「$question」について、お答えできるよう努めます。どのような角度から回答をお求めでしょうか？'
+    ];
+    
+    // 質問の長さに基づいて回答を選択
+    final index = question.length % responses.length;
+    return responses[index];
+  }
+  
+  bool _containsNumbers(String text) {
+    return RegExp(r'\d').hasMatch(text);
   }
 
   // ignore: prefer_function_declarations_over_variables
