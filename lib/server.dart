@@ -187,17 +187,121 @@ class GeminiApiServer {
 
   Future<String> _callGeminiApi(String question) async {
     try {
-      // Gemini WebサイトのAPIエンドポイントを直接呼び出し
-      // 実際のブラウザのようにリクエストを送信
-      final response = await http.post(
-        Uri.parse('https://gemini.google.com/app/conversation'),
+      // Gemini Webサイトを自動操作してレスポンスを取得
+      final response = await _automateGeminiWebsite(question);
+      if (response.isNotEmpty) {
+        return response;
+      } else {
+        return _generateSimpleResponse(question);
+      }
+    } catch (e) {
+      // エラーが発生した場合はフォールバック
+      return _generateSimpleResponse(question);
+    }
+  }
+  
+  Future<String> _automateGeminiWebsite(String question) async {
+    try {
+      // Geminiサイトのメインページにアクセス
+      final mainPageResponse = await http.get(
+        Uri.parse('https://gemini.google.com/app'),
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'DNT': '1',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
+        },
+      );
+      
+      if (mainPageResponse.statusCode != 200) {
+        return '';
+      }
+      
+      // セッションCookieやCSRFトークンを抽出
+      final cookies = mainPageResponse.headers['set-cookie'] ?? '';
+      final pageContent = mainPageResponse.body;
+      
+      // CSRFトークンやセッション情報を抽出（簡易版）
+      final csrfMatch = RegExp(r'"csrf_token"\s*:\s*"([^"]+)"').firstMatch(pageContent);
+      final sessionMatch = RegExp(r'"session_id"\s*:\s*"([^"]+)"').firstMatch(pageContent);
+      
+      final csrfToken = csrfMatch?.group(1) ?? '';
+      final sessionId = sessionMatch?.group(1) ?? '';
+      
+      // 質問を送信するAPIエンドポイントを呼び出し
+      final chatResponse = await http.post(
+        Uri.parse('https://gemini.google.com/app/api/chat'),
         headers: {
           'Content-Type': 'application/json',
           'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json, text/plain, */*',
+          'Accept': 'application/json',
           'Accept-Language': 'ja,en-US;q=0.9,en;q=0.8',
           'Origin': 'https://gemini.google.com',
-          'Referer': 'https://gemini.google.com/',
+          'Referer': 'https://gemini.google.com/app',
+          'X-Requested-With': 'XMLHttpRequest',
+          'Cookie': cookies,
+          if (csrfToken.isNotEmpty) 'X-CSRF-Token': csrfToken,
+        },
+        body: json.encode({
+          'message': {
+            'text': question,
+            'type': 'text'
+          },
+          'conversation_id': sessionId.isNotEmpty ? sessionId : null,
+          'model': 'gemini-pro',
+          'stream': false,
+        }),
+      );
+      
+      if (chatResponse.statusCode == 200) {
+        final responseData = json.decode(chatResponse.body) as Map<String, dynamic>;
+        
+        // レスポンスからテキストを抽出
+        if (responseData['candidates'] != null && responseData['candidates'] is List) {
+          final candidates = responseData['candidates'] as List;
+          if (candidates.isNotEmpty) {
+            final firstCandidate = candidates[0] as Map<String, dynamic>;
+            if (firstCandidate['content'] != null) {
+              final content = firstCandidate['content'] as Map<String, dynamic>;
+              if (content['parts'] != null && content['parts'] is List) {
+                final parts = content['parts'] as List;
+                if (parts.isNotEmpty) {
+                  final firstPart = parts[0] as Map<String, dynamic>;
+                  if (firstPart['text'] != null) {
+                    return firstPart['text'] as String;
+                  }
+                }
+              }
+            }
+          }
+        }
+        
+        // 別の形式のレスポンスを試す
+        if (responseData['response'] != null) {
+          return responseData['response'] as String;
+        }
+        
+        if (responseData['text'] != null) {
+          return responseData['text'] as String;
+        }
+        
+        if (responseData['message'] != null) {
+          return responseData['message'] as String;
+        }
+      }
+      
+      // 代替エンドポイントを試す
+      final altResponse = await http.post(
+        Uri.parse('https://bard.google.com/api/chat'),
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Origin': 'https://bard.google.com',
+          'Referer': 'https://bard.google.com/',
         },
         body: json.encode({
           'message': question,
@@ -205,25 +309,17 @@ class GeminiApiServer {
         }),
       );
       
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body) as Map<String, dynamic>;
-        
-        // レスポンスからテキストを抽出（実際の構造に応じて調整が必要）
-        if (data['response'] != null) {
-          return data['response'] as String;
-        } else if (data['text'] != null) {
-          return data['text'] as String;
-        } else {
-          // フォールバック: シンプルなAI風レスポンス生成
-          return _generateSimpleResponse(question);
+      if (altResponse.statusCode == 200) {
+        final altData = json.decode(altResponse.body) as Map<String, dynamic>;
+        if (altData['response'] != null) {
+          return altData['response'] as String;
         }
-      } else {
-        // APIが使えない場合のフォールバック
-        return _generateSimpleResponse(question);
       }
+      
+      return '';
     } catch (e) {
-      // エラーが発生した場合もフォールバック
-      return _generateSimpleResponse(question);
+      print('Gemini automation error: $e');
+      return '';
     }
   }
   
